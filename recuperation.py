@@ -24,7 +24,7 @@ def recup_pathologie(texte, db_csv, i):
     else:
         db_csv.loc[i, 'erreurs'] = True
         error = pandas.read_csv("Datas/erreurs.csv")
-        error.loc[len(error)] = ["Problème pathologies"] + list(db_csv.loc[i])
+        error.loc[len(error)] = ["Problème pathologies"] + list(db_csv.loc[i])+[False]
         error.to_csv("Datas/erreurs.csv", encoding='utf-8', index=False)
         db_csv.to_csv('arretes.csv', encoding='utf-8', index=False)
         return None
@@ -40,7 +40,7 @@ def recup_date(texte, db_csv, i):
     else:
         db_csv.loc[i, 'erreurs'] = True
         error = pandas.read_csv("Datas/erreurs.csv")
-        error.loc[len(error)] = ["Problème date"] + list(db_csv.loc[i])
+        error.loc[len(error)] = ["Problème date"] + list(db_csv.loc[i])+[False]
         error.to_csv("Datas/erreurs.csv", encoding='utf-8', index=False)
         db_csv.to_csv('arretes.csv', encoding='utf-8', index=False)
         return None
@@ -81,6 +81,7 @@ def classification_pathologie(pathologie):
     ajout_class("umid", "humidité", classification, pathologie)
     ajout_class("nstab", "instabilité", classification, pathologie)
     ajout_class("oisi", "moisissures", classification, pathologie)
+    ajout_class("ruine", "risque de ruines")
     return classification
 
 
@@ -93,6 +94,7 @@ def classification_lieu(pathologie):
     ajout_class("oiture", "toiture", classification, pathologie)
     ajout_class("scalier", "escalier", classification, pathologie)
     ajout_class("loison", "cloison", classification, pathologie)
+    ajout_class("onstruction", "construction")
     ajout_class("lafond", "plafond", classification, pathologie)
     ajout_class("sol", "plancher", classification, pathologie)
     ajout_class("lancher", "plancher", classification, pathologie)

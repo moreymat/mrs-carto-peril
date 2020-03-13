@@ -78,11 +78,12 @@ def message(liste_adresse, db_csv):
                             + db[couple[0]][0]["date"] + '<br>'
             except:
                 indice = db_csv.loc[db_csv['url'] == db[couple[0]][0]["url"]].index.tolist()[0]
-                db_csv.loc[indice, 'erreurs'] = True
-                error = pandas.read_csv("Datas/erreurs.csv")
-                error.loc[len(error)] = ["Problème date"] + list(db_csv.loc[indice])
-                error.to_csv("Datas/erreurs.csv", encoding='utf-8', index=False)
-                db_csv.to_csv('arretes.csv', encoding='utf-8', index=False)
+                if not db_csv.loc[indice].erreurs:
+                    db_csv.loc[indice, 'erreurs'] = True
+                    error = pandas.read_csv("Datas/erreurs.csv")
+                    error.loc[len(error)] = ["Problème date"] + list(db_csv.loc[indice])+[False]
+                    error.to_csv("Datas/erreurs.csv", encoding='utf-8', index=False)
+                    db_csv.to_csv('arretes.csv', encoding='utf-8', index=False)
             if cat == 'Arrêtés de péril':
                 try:
                     char += return_string(db[couple[0]][0]["classification_pathologies"]) + " <br> " + return_string(

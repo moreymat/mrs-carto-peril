@@ -44,7 +44,7 @@ def pdf_to_txt():
                 if db_csv.loc[i, 'erreurs'] == False:
                     db_csv.loc[i, 'erreurs'] = True
                     error = pandas.read_csv("Datas/erreurs.csv")
-                    error.loc[len(error)] = ["Problème URL"] + list(db_csv.loc[i])
+                    error.loc[len(error)] = ["Problème URL"] + list(db_csv.loc[i])+[False]
                     error.to_csv("Datas/erreurs.csv", encoding='utf-8', index=False)
 
             try:

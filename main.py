@@ -38,7 +38,7 @@ for i in range(len(db_csv)):
                     except:
                         db_csv.loc[i, 'erreurs'] = True
                         error = pandas.read_csv("Datas/erreurs.csv")
-                        error.loc[len(error)] = ["Problème adresse"] + list(db_csv.loc[i])
+                        error.loc[len(error)] = ["Problème adresse"] + list(db_csv.loc[i])+[False]
                         error.to_csv("Datas/erreurs.csv", encoding='utf-8', index=False)
                         db_csv.to_csv('arretes.csv', encoding='utf-8', index=False)
             else:
@@ -48,7 +48,7 @@ for i in range(len(db_csv)):
                 except:
                     db_csv.loc[i, 'erreurs'] = True
                     error = pandas.read_csv("Datas/erreurs.csv")
-                    error.loc[len(error)] = ["Problème adresse"] + list(db_csv.loc[i])
+                    error.loc[len(error)] = ["Problème adresse"] + list(db_csv.loc[i])+[False]
                     error.to_csv("Datas/erreurs.csv", encoding='utf-8', index=False)
                     db_csv.to_csv('arretes.csv', encoding='utf-8', index=False)
 db_csv.to_csv("arretes.csv", index=False, encoding='utf-8')
