@@ -1,38 +1,30 @@
-########
-### 2 endroits à modifier pour tesseract
-#######
+# Modifier ligne 14 à 18 pour tesseract
 
 import os
-import pytesseract
-from pdf2image import convert_from_path
+
 import pandas
+from pdf2image import convert_from_path
+import pytesseract
 import requests
+
 from gestion_erreurs import enlever_erreur, ajout_erreur
 
-#########
-### À adapter en fonction de l'ordinateur utilisé
-### Pour PC: (?)
+# À adapter en fonction de l'ordinateur utilisé
+# Linux/Windows
+tessdata_dir_config = ""
+# - Windows : (?)
 # pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-### Pour Mac: (?)
-tessdata_dir_config = (
-    r'--tessdata-dir "/Users/maelle/Downloads/tesseract-ocr-setup-3.05.01/tessdata/"'
-)
-#########
+# - Mac : (?)
+# tessdata_dir_config = r'--tessdata-dir "/Users/maelle/Downloads/tesseract-ocr-setup-3.05.01/tessdata/"'
 
 
 def pdf_to_image(pdf_path):
     images = convert_from_path(pdf_path)
     text = ""
     for i, image in enumerate(images):
-        #########
-        ### À adapter en fonction de l'ordinateur utilisé
-        ### Pour PC: (?)
-        # text = text + pytesseract.image_to_string(image, lang='fra')
-        ### Pour Mac: (?)
         text = text + pytesseract.image_to_string(
             image, lang="fra", config=tessdata_dir_config
         )
-        #########
     return text
 
 

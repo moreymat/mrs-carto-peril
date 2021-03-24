@@ -2,15 +2,17 @@
 ### 2 endroits à modifier en fonction de MARKER ou POINT
 ######
 
+import os
+import webbrowser
+
+import folium
+from folium.plugins import MarkerCluster
+
 import geocode as geo
 import carte
 import database
-import os
 import convert_pdf_to_txt as conv
 import recuperation as rec
-import webbrowser
-import folium
-from folium.plugins import MarkerCluster
 from gestion_erreurs import ajout_erreur
 
 
