@@ -3,10 +3,6 @@ import json
 import recuperation as rec
 
 
-# liste des classifications de pathologies
-# 'classification_pathologies'=["affaissemnt", "altération", "risque de chutes", "fissures", "fissures", "débris",
-# "affaissement", "basculement d'escalier", "risque d'effondrement"]
-
 def ouverture_bdd():
     with open('data.json', encoding='utf-8') as json_data:
         data_dict = json.load(json_data)
@@ -51,13 +47,3 @@ def ajout_ligne_autre(categorie, id, url, adresse, date):
         json.dump(db, f, ensure_ascii=False)
     return None
 
-
-def get_coordonnees_url(url):
-    db = ouverture_bdd()
-    i = 0
-    url_found = False
-    while not url_found:
-        if db.loc[i].lien_artété != url:
-            i += 1
-        else:
-            return db.loc[i].lon, db.loc[i].lat

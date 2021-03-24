@@ -1,34 +1,56 @@
 # -*- coding: utf-8 -*-
+
+#######
+### 2 endroits à modifier en fonction de MARKER ou POINT
+######
+
 import folium
 import database
 from branca.element import Template, MacroElement
-import pandas
+from gestion_erreurs import ajout_erreur
 
 lat_marseille = 43.2969500
 lon_marseille = 5.3810700
 
 
 def creation_carte():
-    return folium.Map(location=[lat_marseille, lon_marseille], zoom_start=12, min_zoom=11)
-
+    return folium.Map(
+        location=[lat_marseille, lon_marseille], zoom_start=12, min_zoom=11
+    )
 
 
 palette = dict()
-palette["Arrêtés de déconstruction"]  = "black"
+palette["Arrêtés de déconstruction"] = "black"
 palette["Arrêtés d'interdiction d'occuper"] = "darkred"
 palette["Arrêtés de péril"] = "red"
 palette["Arrêtés de péril modificatif"] = "red"
 palette["Arrêtés d'insécurité imminente des équipements communs"] = "lightred"
 palette["Arrêtés d'évacuation et de réintégration"] = "orange"
+##########
+### Pour des markers:
 palette["Arrêtés de périmètres de sécurité sur voie publique"] = "beige"
 palette["Arrêtés de police générale"] = "beige"
+### Pour des points:
+# palette["Arrêtés de périmètres de sécurité sur voie publique"] = "#FFDAB9"
+# palette["Arrêtés de police générale"] = "#FFDAB9"
+#########
 palette["Arrêtés de main levée partielle"] = "lightgreen"
 palette["Arrêtés de main levée"] = "green"
 palette["Diagnostics d'ouvrages"] = "purple"
 
+
 def creation_marker(carte, x, y, message):
     popup = folium.Popup(message[0], max_width=600, min_width=600)
-    return folium.Marker([x, y], popup=popup, icon=folium.Icon(icon='home', icon_color='white', color=palette[message[1]])).add_to(carte)
+    #########
+    ### Pour des Markers:
+    return folium.Marker(
+        [x, y],
+        popup=popup,
+        icon=folium.Icon(icon="home", icon_color="white", color=palette[message[1]]),
+    ).add_to(carte)
+    ###Pour des Points:
+    # return folium.vector_layers.Circle([x, y], radius=4, fill=True,fill_opacity=0.5, popup=popup, color=palette[message[1]]).add_to(carte)
+    #########
 
 
 def adresses():
@@ -48,6 +70,21 @@ def return_string(liste):
     return str
 
 
+def trie_date(liste_date):
+    for i in range(len(liste_date)):
+        intermediaire = liste_date[i].split("/")
+        intermediaire.reverse()
+        s = "/".join(intermediaire)
+        liste_date[i] = s
+    liste_date.sort(reverse=True)
+    for i in range(len(liste_date)):
+        intermediaire = liste_date[i].split("/")
+        intermediaire.reverse()
+        s = "/".join(intermediaire)
+        liste_date[i] = s
+    return liste_date
+
+
 def message(liste_adresse, db_csv):
     db = database.ouverture_bdd()
     liste = []
@@ -63,7 +100,7 @@ def message(liste_adresse, db_csv):
                     liste_key_date.append([key, value[0]["date"]])
                     liste_date.append(value[0]["date"])
         # liste_date.sort(reverse=True)
-        liste_date.reverse()
+        trie_date(liste_date)
         sorted_list = []
         for i in liste_date:
             for k in liste_key_date:
@@ -72,34 +109,40 @@ def message(liste_adresse, db_csv):
         cat_last = db[sorted_list[0][0]][0]["categorie"]
         for couple in sorted_list:
             cat = db[couple[0]][0]["categorie"]
-            char += '<U>' + cat + '</U><br>'
+            char += "<U>" + cat + "</U><br>"
             try:
-                char += '<i>' + '<a href=' + db[couple[0]][0]["url"] + ' Target="_blank">Lien vers le pdf</a>' + '</i> '\
-                            + db[couple[0]][0]["date"] + '<br>'
+                char += (
+                    "<i>"
+                    + "<a href="
+                    + db[couple[0]][0]["url"]
+                    + ' Target="_blank">Lien vers le pdf</a>'
+                    + "</i> "
+                    + db[couple[0]][0]["date"]
+                    + "<br>"
+                )
             except:
-                indice = db_csv.loc[db_csv['url'] == db[couple[0]][0]["url"]].index.tolist()[0]
-                if not db_csv.loc[indice].erreurs:
-                    db_csv.loc[indice, 'erreurs'] = True
-                    error = pandas.read_csv("Datas/erreurs.csv")
-                    error.loc[len(error)] = ["Problème date"] + list(db_csv.loc[indice])+[False]
-                    error.to_csv("Datas/erreurs.csv", encoding='utf-8', index=False)
-                    db_csv.to_csv('arretes.csv', encoding='utf-8', index=False)
-            if cat == 'Arrêtés de péril':
+                indice = db_csv.loc[
+                    db_csv["url"] == db[couple[0]][0]["url"]
+                ].index.tolist()[0]
+                ajout_erreur(db_csv, indice, "Problème date")
+            if cat == "Arrêtés de péril":
                 try:
-                    char += return_string(db[couple[0]][0]["classification_pathologies"]) + " <br> " + return_string(
-                        db[couple[0]][0]["classification_lieux"]) + "<br>"
+                    char += (
+                        return_string(db[couple[0]][0]["classification_pathologies"])
+                        + " <br> "
+                        + return_string(db[couple[0]][0]["classification_lieux"])
+                        + "<br>"
+                    )
                 except:
                     print(adresse, "problème de pathologie manquante")
-            char += '<br>'
-        char += '</font>'
-        liste.append([char, cat_last] )
+            char += "<br>"
+        char += "</font>"
+        liste.append([char, cat_last])
 
     return liste
 
 
 def ajout_legend():
-
-
     template = """
     {% macro html(this, kwargs) %}
 
@@ -145,8 +188,8 @@ def ajout_legend():
         <li><span style='background:red;opacity:0.7;'></span>Arrêtés de péril modificatif</li>
         <li><span style='background:salmon;opacity:0.7;'></span>Arrêtés d'insécurité imminente des équipements communs</li>
         <li><span style='background:orange;opacity:0.7;'></span>Arrêtés d'évacuation et de réintégration</li>
-        <li><span style='background:beige;opacity:0.7;'></span>Arrêtés de périmètres de sécurité sur voie publique</li>
-        <li><span style='background:beige;opacity:0.7;'></span>Arrêtés de police générale </li>
+        <li><span style='background:#FFDAB9;opacity:0.7;'></span>Arrêtés de périmètres de sécurité sur voie publique</li>
+        <li><span style='background:#FFDAB9;opacity:0.7;'></span>Arrêtés de police générale </li>
         <li><span style='background:lightgreen;opacity:0.7;'></span>Arrêtés de main levée partielle </li>
         <li><span style='background:green;opacity:0.7;'></span>Arrêtés de main levée </li>
         <li><span style='background:purple;opacity:0.7;'></span>Diagnostics d'ouvrages </li>
@@ -197,9 +240,6 @@ def ajout_legend():
         }
     </style>
     {% endmacro %}"""
-
     macro = MacroElement()
     macro._template = Template(template)
-
     return macro
-

@@ -1,4 +1,5 @@
 import pandas
+from gestion_erreurs import ajout_erreur
 
 
 def recup_id(texte):
@@ -9,7 +10,14 @@ def recup_id(texte):
 
 def recup_adresse(texte):
     fichier = open(texte, "r", encoding="utf-8")
-    res = str(fichier.read()).partition("immeuble sis ")[2].partition("-")[0].partition("")[0].partition("â")[0].partition("—")[0]
+    res = (
+        str(fichier.read())
+        .partition("immeuble sis ")[2]
+        .partition("-")[0]
+        .partition("")[0]
+        .partition("â")[0]
+        .partition("—")[0]
+    )
     return res
 
 
@@ -17,16 +25,16 @@ def recup_pathologie(texte, db_csv, i):
     fichier = open(texte, "r", encoding="utf-8")
     if "pathologies suivantes" in fichier.read():
         fichier.seek(0)
-        res = str(fichier.read()).partition("pathologies suivantes")[2].partition("Considérant")[0]
+        res = (
+            str(fichier.read())
+            .partition("pathologies suivantes")[2]
+            .partition("Considérant")[0]
+        )
         fichier.close()
         return res
 
     else:
-        db_csv.loc[i, 'erreurs'] = True
-        error = pandas.read_csv("Datas/erreurs.csv")
-        error.loc[len(error)] = ["Problème pathologies"] + list(db_csv.loc[i])+[False]
-        error.to_csv("Datas/erreurs.csv", encoding='utf-8', index=False)
-        db_csv.to_csv('arretes.csv', encoding='utf-8', index=False)
+        ajout_erreur(db_csv, i, "Problème pathologies")
         return None
 
 
@@ -38,11 +46,7 @@ def recup_date(texte, db_csv, i):
         fichier.close()
         return res
     else:
-        db_csv.loc[i, 'erreurs'] = True
-        error = pandas.read_csv("Datas/erreurs.csv")
-        error.loc[len(error)] = ["Problème date"] + list(db_csv.loc[i])+[False]
-        error.to_csv("Datas/erreurs.csv", encoding='utf-8', index=False)
-        db_csv.to_csv('arretes.csv', encoding='utf-8', index=False)
+        ajout_erreur(db_csv, i, "Problème date")
         return None
 
 
@@ -81,31 +85,31 @@ def classification_pathologie(pathologie):
     ajout_class("umid", "humidité", classification, pathologie)
     ajout_class("nstab", "instabilité", classification, pathologie)
     ajout_class("oisi", "moisissures", classification, pathologie)
-    ajout_class("ruine", "risque de ruines")
+    ajout_class("ruine", "risque de ruine", classification, pathologie)
     return classification
 
 
 def classification_lieu(pathologie):
     classification = []
     ajout_class("alcon", "balcon", classification, pathologie)
+    ajout_class("errass", "balcon", classification, pathologie)
+    ajout_class("harpente", "charpente", classification, pathologie)
+    ajout_class("loison", "cloison", classification, pathologie)
+    ajout_class("orniche", "corniche", classification, pathologie)
+    ajout_class("onstruction", "constructions", classification, pathologie)
+    ajout_class("arche", "escalier", classification, pathologie)
+    ajout_class("scalier", "escalier", classification, pathologie)
     ajout_class("agade", "façade", classification, pathologie)
     ajout_class("açade", "façade", classification, pathologie)
     ajout_class("acade", "façade", classification, pathologie)
-    ajout_class("oiture", "toiture", classification, pathologie)
-    ajout_class("scalier", "escalier", classification, pathologie)
-    ajout_class("loison", "cloison", classification, pathologie)
-    ajout_class("onstruction", "construction")
+    ajout_class("enêtre", "fenêtre", classification, pathologie)
+    ajout_class("enetre", "fenêtre", classification, pathologie)
+    ajout_class("mur", "mur", classification, pathologie)
+    ajout_class("lafond", "plafond", classification, pathologie)
     ajout_class("lafond", "plafond", classification, pathologie)
     ajout_class("sol", "plancher", classification, pathologie)
     ajout_class("lancher", "plancher", classification, pathologie)
-    ajout_class("enêtre", "fenêtre", classification, pathologie)
-    ajout_class("enetre", "fenêtre", classification, pathologie)
-    ajout_class("outre", "poutre", classification, pathologie)
     ajout_class("arrelage", "plancher", classification, pathologie)
-    ajout_class("harpente", "charpente", classification, pathologie)
-    ajout_class("mur", "mur", classification, pathologie)
-    ajout_class("arche", "escalier", classification, pathologie)
-    ajout_class("orniche", "corniche", classification, pathologie)
-    ajout_class("lafond", "plafond", classification, pathologie)
-    ajout_class("errass", "balcon", classification, pathologie)
+    ajout_class("outre", "poutre", classification, pathologie)
+    ajout_class("oiture", "toiture", classification, pathologie)
     return classification
