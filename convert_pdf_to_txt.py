@@ -18,7 +18,7 @@ tessdata_dir_config = ""
 # tessdata_dir_config = r'--tessdata-dir "/Users/maelle/Downloads/tesseract-ocr-setup-3.05.01/tessdata/"'
 
 
-def pdf_to_image(pdf_path):
+def pdf_to_string(pdf_path):
     images = convert_from_path(pdf_path)
     text = ""
     for i, image in enumerate(images):
@@ -28,9 +28,10 @@ def pdf_to_image(pdf_path):
     return text
 
 
-def pdf_to_txt():
+def pdf_to_txt(delete_pdfs=False):
     db_csv = pandas.read_csv("arretes.csv", encoding="utf-8")
     for i in range(len(db_csv)):
+        print(f"pdf_to_txt: {i} / {len(db_csv)}")
         url = db_csv.loc[i].url
         url_split = url.split("/")
         nom = url_split[-1].split(".")[0]
@@ -38,26 +39,33 @@ def pdf_to_txt():
             try:
                 changement_url(i, url, db_csv)
                 myfile = requests.get(url)
-                open("./Datas/PDF/" + nom + ".pdf", "wb").write(myfile.content)
-                texte = pdf_to_image("./Datas/PDF/" + nom + ".pdf")
-                fichier = open("./Datas/TXT/" + nom + ".txt", "w", encoding="utf-8")
-                fichier.write(texte)
-                fichier.close()
+                myfile.raise_for_status()
+                with open("./Datas/PDF/" + nom + ".pdf", "wb") as f_pdf:
+                    f_pdf.write(myfile.content)
+                texte = pdf_to_string("./Datas/PDF/" + nom + ".pdf")
+                with open(
+                    "./Datas/TXT/" + nom + ".txt", "w", encoding="utf-8"
+                ) as f_txt:
+                    f_txt.write(texte)
                 if db_csv.loc[i].erreurs:
                     enlever_erreur(db_csv, i, url)
             except:
+                # la requête HTTP a échoué (requests.exceptions.HTTPError) ou
+                # le fichier PDF était incorrect (pdf2image.exceptions.PDFPageCountError)
                 ajout_erreur(db_csv, i, "Problème URL")
 
-            try:
-                os.remove("./Datas/PDF/" + nom + ".pdf")
-            except:
-                pass
+            if delete_pdfs:
+                try:
+                    os.remove("./Datas/PDF/" + nom + ".pdf")
+                except:
+                    pass
         db_csv.loc[i, "nom_txt"] = nom + ".txt"
     db_csv.to_csv("arretes.csv", index=False, encoding="utf-8")
     return db_csv
 
 
 def changement_url(i, url, db):
+    print(f"changement_url: {i}")
     url_split = url.split("/")
     if url_split[2] == "logement-urbanisme.marseille.fr":
         url_split[2] = "marseille.fr"

@@ -20,6 +20,7 @@ db_csv = conv.pdf_to_txt()
 json2 = database.ouverture_bdd()
 
 for i in range(len(db_csv)):
+    print(f"main: {i} / {len(db_csv)}")
     if not db_csv.loc[i].erreurs:
         path = "./Datas/TXT/" + db_csv.loc[i]["nom_txt"]
         id = rec.recup_id(path)
@@ -53,8 +54,10 @@ for i in range(len(db_csv)):
                 except:
                     ajout_erreur(db_csv, i, "Problème adresse")
 
+print("Dump CSV")
 db_csv.to_csv("arretes.csv", index=False, encoding="utf-8")
 
+print("Création de la carte")
 c = carte.creation_carte()
 
 
@@ -78,7 +81,7 @@ liste_adresses = carte.adresses()
 
 liste_messages = carte.message(liste_adresses, db_csv)
 
-
+print("Géocodage des adresses")
 for i in range(len(liste_adresses)):
     ##########
     ### Pour Marker:

@@ -4,9 +4,10 @@
 ### 2 endroits à modifier en fonction de MARKER ou POINT
 ######
 
-import folium
-import database
 from branca.element import Template, MacroElement
+import folium
+
+import database
 from gestion_erreurs import ajout_erreur
 
 lat_marseille = 43.2969500
