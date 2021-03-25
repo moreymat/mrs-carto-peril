@@ -1,27 +1,28 @@
-import pandas
+import pandas as pd
+
 from gestion_erreurs import ajout_erreur
 
 
 def recup_id(texte):
-    fichier = open(texte, "r", encoding="utf-8")
-    res = str(fichier.read()).partition("ID : ")[2].partition("\n")[0]
+    with open(texte, "r", encoding="utf-8") as fichier:
+        res = str(fichier.read()).partition("ID : ")[2].partition("\n")[0]
     return res
 
 
 def recup_adresse(texte):
-    fichier = open(texte, "r", encoding="utf-8")
-    res = (
-        str(fichier.read())
-        .partition("immeuble sis ")[2]
-        .partition("-")[0]
-        .partition("")[0]
-        .partition("â")[0]
-        .partition("—")[0]
-    )
+    with open(texte, "r", encoding="utf-8") as fichier:
+        res = (
+            str(fichier.read())
+            .partition("immeuble sis ")[2]
+            .partition("-")[0]
+            .partition("")[0]
+            .partition("â")[0]
+            .partition("—")[0]
+        )
     return res
 
 
-def recup_pathologie(texte, db_csv, i):
+def recup_pathologie(texte, db_csv, p_list_txt, i):
     fichier = open(texte, "r", encoding="utf-8")
     if "pathologies suivantes" in fichier.read():
         fichier.seek(0)
@@ -32,13 +33,13 @@ def recup_pathologie(texte, db_csv, i):
         )
         fichier.close()
         return res
-
     else:
-        ajout_erreur(db_csv, i, "Problème pathologies")
+        fichier.close()
+        ajout_erreur(db_csv, p_list_txt, i, "Problème pathologies")
         return None
 
 
-def recup_date(texte, db_csv, i):
+def recup_date(texte, db_csv, p_list_txt, i):
     fichier = open(texte, "r", encoding="utf-8")
     if "Envoyé en préfecture le" in fichier.read():
         fichier.seek(0)
@@ -46,7 +47,8 @@ def recup_date(texte, db_csv, i):
         fichier.close()
         return res
     else:
-        ajout_erreur(db_csv, i, "Problème date")
+        fichier.close()
+        ajout_erreur(db_csv, p_list_txt, i, "Problème date")
         return None
 
 

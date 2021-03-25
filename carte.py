@@ -86,7 +86,7 @@ def trie_date(liste_date):
     return liste_date
 
 
-def message(liste_adresse, db_csv):
+def message(liste_adresse, db_csv, p_list_txt):
     db = database.ouverture_bdd()
     liste = []
     for adresse in liste_adresse:
@@ -125,7 +125,7 @@ def message(liste_adresse, db_csv):
                 indice = db_csv.loc[
                     db_csv["url"] == db[couple[0]][0]["url"]
                 ].index.tolist()[0]
-                ajout_erreur(db_csv, indice, "Problème date")
+                ajout_erreur(db_csv, p_list_txt, indice, "Problème date")
             if cat == "Arrêtés de péril":
                 try:
                     char += (
