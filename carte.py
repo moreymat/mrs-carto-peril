@@ -4,6 +4,8 @@
 ### 2 endroits à modifier en fonction de MARKER ou POINT
 ######
 
+from datetime import datetime
+
 from branca.element import Template, MacroElement
 import folium
 
@@ -40,18 +42,36 @@ palette["Arrêtés de main levée"] = "green"
 palette["Diagnostics d'ouvrages"] = "purple"
 
 
-def creation_marker(carte, x, y, message):
+def creation_marker(carte, x, y, message, marker_type="marker"):
+    """
+    Parameters
+    ----------
+    marker_type : one of {"marker", "point"}
+    """
+    # DEBUG
+    print(message)
+    # end DEBUG
     popup = folium.Popup(message[0], max_width=600, min_width=600)
-    #########
-    ### Pour des Markers:
-    return folium.Marker(
-        [x, y],
-        popup=popup,
-        icon=folium.Icon(icon="home", icon_color="white", color=palette[message[1]]),
-    ).add_to(carte)
-    ###Pour des Points:
-    # return folium.vector_layers.Circle([x, y], radius=4, fill=True,fill_opacity=0.5, popup=popup, color=palette[message[1]]).add_to(carte)
-    #########
+    if marker_type == "marker":
+        # marker
+        res = folium.Marker(
+            [x, y],
+            popup=popup,
+            icon=folium.Icon(
+                icon="home", icon_color="white", color=palette[message[1]]
+            ),
+        )
+    else:
+        # point
+        res = folium.vector_layers.Circle(
+            [x, y],
+            radius=4,
+            fill=True,
+            fill_opacity=0.5,
+            popup=popup,
+            color=palette[message[1]],
+        )
+    res.add_to(carte)
 
 
 def adresses():
@@ -64,14 +84,8 @@ def adresses():
     return liste
 
 
-def return_string(liste):
-    str = "- " + liste[0]
-    for i in range(1, len(liste)):
-        str += ", " + liste[i]
-    return str
-
-
 def trie_date(liste_date):
+    # print("IN: ", liste_date)  # DEBUG
     for i in range(len(liste_date)):
         intermediaire = liste_date[i].split("/")
         intermediaire.reverse()
@@ -83,6 +97,7 @@ def trie_date(liste_date):
         intermediaire.reverse()
         s = "/".join(intermediaire)
         liste_date[i] = s
+    # print("OUT: ", liste_date)  # DEBUG
     return liste_date
 
 
@@ -100,8 +115,18 @@ def message(liste_adresse, db_csv, p_list_txt):
                     liste_key.append(key)
                     liste_key_date.append([key, value[0]["date"]])
                     liste_date.append(value[0]["date"])
-        # liste_date.sort(reverse=True)
+        # alt 1 ; parsing ensures it is indeed a date (surprise: sometimes it isn't)
+        liste_dateD = [datetime.strptime(x, "%d/%m/%Y") for x in liste_date]
+        liste_dateD_s = sorted(liste_dateD, reverse=True)
+        liste_dateD_f = [x.strftime("%d/%m/%Y") for x in liste_dateD_s]
+        # alt 2
+        liste_date2_f = sorted(
+            liste_date, key=lambda x: tuple(reversed(x.split("/"))), reverse=True
+        )
+        # base version
         trie_date(liste_date)
+        assert liste_dateD_f == liste_date2_f == liste_date
+        #
         sorted_list = []
         for i in liste_date:
             for k in liste_key_date:
@@ -129,9 +154,11 @@ def message(liste_adresse, db_csv, p_list_txt):
             if cat == "Arrêtés de péril":
                 try:
                     char += (
-                        return_string(db[couple[0]][0]["classification_pathologies"])
-                        + " <br> "
-                        + return_string(db[couple[0]][0]["classification_lieux"])
+                        "- "
+                        + ", ".join(db[couple[0]][0]["classification_pathologies"])
+                        + "<br> "
+                        + "- "
+                        + ", ".join(db[couple[0]][0]["classification_lieux"])
                         + "<br>"
                     )
                 except:
