@@ -1,11 +1,7 @@
 # -*- coding: utf-8 -*-
 
-#######
-### 2 endroits à modifier en fonction de MARKER ou POINT
-######
-
 from datetime import datetime
-
+import re
 from branca.element import Template, MacroElement
 import folium
 
@@ -42,15 +38,14 @@ palette["Arrêtés de main levée"] = "green"
 palette["Diagnostics d'ouvrages"] = "purple"
 
 
-def creation_marker(carte, x, y, message, marker_type="marker"):
+def creation_marker(parent, x, y, message, marker_type="marker"):
     """
     Parameters
     ----------
+    parent : Union[Map, MarkerCluster]
+
     marker_type : one of {"marker", "point"}
     """
-    # DEBUG
-    print(message)
-    # end DEBUG
     popup = folium.Popup(message[0], max_width=600, min_width=600)
     if marker_type == "marker":
         # marker
@@ -71,7 +66,7 @@ def creation_marker(carte, x, y, message, marker_type="marker"):
             popup=popup,
             color=palette[message[1]],
         )
-    res.add_to(carte)
+    res.add_to(parent)
 
 
 def adresses():
@@ -84,21 +79,63 @@ def adresses():
     return liste
 
 
-def trie_date(liste_date):
-    # print("IN: ", liste_date)  # DEBUG
-    for i in range(len(liste_date)):
-        intermediaire = liste_date[i].split("/")
-        intermediaire.reverse()
-        s = "/".join(intermediaire)
-        liste_date[i] = s
-    liste_date.sort(reverse=True)
-    for i in range(len(liste_date)):
-        intermediaire = liste_date[i].split("/")
-        intermediaire.reverse()
-        s = "/".join(intermediaire)
-        liste_date[i] = s
-    # print("OUT: ", liste_date)  # DEBUG
-    return liste_date
+def adrlatlons():
+    db = database.ouverture_bdd()
+    result = []
+    for key, value in db.items():
+        adrlatlon = (value[0]["adresse"], value[0]["latitude"], value[0]["longitude"])
+        if adrlatlon not in result:
+            result.append(adrlatlon)
+    return result
+
+
+#  FIXME appliquer en amont? + redondant avec recuperation.RE_DOC_ID
+RE_DOC_ID = re.compile(
+    r"(?P<doc_id_year>\d{4})[ ]?[-_]?[ ]?(?P<doc_id_idx>\d{4,5}[B]?)[ ]?[-_.]?[ ]?(?P<doc_id_suf>VDM[A]?)"
+)
+
+
+def sort_docs(list_k_date, reverse_chronological=True):
+    """Trie des documents.
+
+    Parameters
+    ----------
+    list_k_date : List[Tuple[str, str]]
+        Couple clé et date de chaque document.
+
+    Returns
+    -------
+    sorted_list : List[str]
+        Liste triée de couples clé et date.
+    """
+    m_norm_keys = [RE_DOC_ID.search(k) for k, date in list_k_date]
+    if any(m is None for m in m_norm_keys):
+        raise ValueError(f"Key set : {repr(list_k_date)}")
+    norm_keys = [
+        m.group("doc_id_year", "doc_id_idx", "doc_id_suf") for m in m_norm_keys
+    ]
+    norm_k_date = list(
+        sorted(
+            [(norm_k, k, date) for norm_k, (k, date) in zip(norm_keys, list_k_date)],
+            key=lambda x: x[0],
+            reverse=True,
+        )
+    )
+    sorted_k_date = [(x[1], x[2]) for x in norm_k_date]  # new result ?
+    # sort dates?
+    if False:
+        # alt 1 ; parsing ensures it is indeed a date (surprise: sometimes it isn't)
+        liste_dateD = [
+            datetime.strptime(x, "%d/%m/%Y") if x is not None else x for x in liste_date
+        ]
+        liste_dateD_s = sorted(liste_dateD, reverse=True)
+        liste_dateD_f = [x.strftime("%d/%m/%Y") for x in liste_dateD_s]
+        # alt 2
+        liste_date2_f = sorted(
+            liste_date, key=lambda x: tuple(reversed(x.split("/"))), reverse=True
+        )
+    #
+    return sorted_k_date
 
 
 def message(liste_adresse, db_csv, p_list_txt):
@@ -106,63 +143,46 @@ def message(liste_adresse, db_csv, p_list_txt):
     liste = []
     for adresse in liste_adresse:
         char = '<font size="+1"><B>' + adresse + "</B><br><br>"
-        liste_key = []
-        liste_key_date = []
-        liste_date = []
-        for key, value in db.items():
-            if value[0]["adresse"] == adresse:
-                if key not in liste_key:
-                    liste_key.append(key)
-                    liste_key_date.append([key, value[0]["date"]])
-                    liste_date.append(value[0]["date"])
-        # alt 1 ; parsing ensures it is indeed a date (surprise: sometimes it isn't)
-        liste_dateD = [datetime.strptime(x, "%d/%m/%Y") for x in liste_date]
-        liste_dateD_s = sorted(liste_dateD, reverse=True)
-        liste_dateD_f = [x.strftime("%d/%m/%Y") for x in liste_dateD_s]
-        # alt 2
-        liste_date2_f = sorted(
-            liste_date, key=lambda x: tuple(reversed(x.split("/"))), reverse=True
-        )
-        # base version
-        trie_date(liste_date)
-        assert liste_dateD_f == liste_date2_f == liste_date
-        #
-        sorted_list = []
-        for i in liste_date:
-            for k in liste_key_date:
-                if k[1] == i:
-                    sorted_list.append(k)
+        # begin sort docs (reverse chronological order)
+        sel_docs = [
+            (k, v[0]["date"]) for k, v in db.items() if v[0]["adresse"] == adresse
+        ]
+        sorted_list = sort_docs(sel_docs)
+        # end sort docs (reverse chronological order)
         cat_last = db[sorted_list[0][0]][0]["categorie"]
         for couple in sorted_list:
-            cat = db[couple[0]][0]["categorie"]
+            elt = db[couple[0]][0]
+            # TODO handle in a better way
+            if elt["date"] is None:
+                if not db_csv.loc[db_csv["url"] == elt["url"], "err_date"].values[0]:
+                    indice = db_csv.loc[db_csv["url"] == elt["url"]].index.tolist()[0]
+                    ajout_erreur(db_csv, p_list_txt, indice, "Problème date")
+            # end TODO
+            cat = elt["categorie"]
             char += "<U>" + cat + "</U><br>"
-            try:
-                char += (
-                    "<i>"
-                    + "<a href="
-                    + db[couple[0]][0]["url"]
-                    + ' Target="_blank">Lien vers le pdf</a>'
-                    + "</i> "
-                    + db[couple[0]][0]["date"]
-                    + "<br>"
-                )
-            except:
-                indice = db_csv.loc[
-                    db_csv["url"] == db[couple[0]][0]["url"]
-                ].index.tolist()[0]
-                ajout_erreur(db_csv, p_list_txt, indice, "Problème date")
+            char += (
+                "<i>"
+                + "<a href="
+                + elt["url"]
+                + ' Target="_blank">Lien vers le pdf</a>'
+                + "</i> "
+                + (elt["date"] if elt["date"] is not None else "??/??/????")
+                + "<br>"
+            )
+            #
             if cat == "Arrêtés de péril":
                 try:
                     char += (
                         "- "
-                        + ", ".join(db[couple[0]][0]["classification_pathologies"])
+                        + ", ".join(elt["classification_pathologies"])
                         + "<br> "
                         + "- "
-                        + ", ".join(db[couple[0]][0]["classification_lieux"])
+                        + ", ".join(elt["classification_lieux"])
                         + "<br>"
                     )
                 except:
                     print(adresse, "problème de pathologie manquante")
+                    raise
             char += "<br>"
         char += "</font>"
         liste.append([char, cat_last])

@@ -1,6 +1,8 @@
+from pathlib import Path
+
 import pandas as pd
 
-F_ERREURS_CSV = "Datas/erreurs.csv"
+F_ERREURS_CSV = Path("Datas", "erreurs.csv")
 
 
 def ajout_erreur(db_csv, p_list_txt, i, erreur):
@@ -8,6 +10,11 @@ def ajout_erreur(db_csv, p_list_txt, i, erreur):
     p_list_txt : Path
         Interim CSV file.
     """
+    # if erreur == "Problème URL":
+    #     raise ValueError("what? err_url ?")
+    if erreur != "Problème URL":
+        print(p_list_txt, i, erreur, db_csv.iloc[i])
+        raise ValueError("STOP ME NOW")
     if not db_csv.loc[i, "erreurs"]:
         db_csv.loc[i, "erreurs"] = True
         error = pd.read_csv(F_ERREURS_CSV)

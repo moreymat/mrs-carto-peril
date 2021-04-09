@@ -10,18 +10,6 @@ def ouverture_bdd():
     return data_dict
 
 
-MAP_NEW_CLASSES = {
-    "CONSULTEZ LES DERNIERS ARRÊTÉS DE DÉCONSTRUCTION": "Arrêtés de déconstruction",
-    "CONSULTEZ LES DERNIERS ARRÊTÉS DE PÉRIL IMMINENT, DE MAIN LEVÉE ET DE RÉINTÉGRATION PARTIELLE DE LA VILLE DE MARSEILLE PAR ARRONDISSEMENT (ORDRE CHRONOLOGIQUE)": "Arrêtés de péril imminent, de Main Levée et de Réintégration partielle de la ville de Marseille",
-    "CONSULTEZ LES DERNIERS ARRÊTÉS DE PÉRIMÈTRES DE SÉCURITÉ SUR VOIE PUBLIQUE": "Arrêtés de périmètres de sécurité sur voie publique",
-    "CONSULTEZ LES DERNIERS ARRÊTÉS DE POLICE GÉNÉRALE": "Arrêtés de police générale",
-    "CONSULTEZ LES DERNIERS ARRÊTÉS D'ÉVACUATION ET DE RÉINTÉGRATION": "Arrêtés d'évacuation et de réintégration",
-    "CONSULTEZ LES DERNIERS ARRÊTÉS D'INSÉCURITÉ IMMINENTE DES ÉQUIPEMENTS COMMUNS": "Arrêtés d'insécurité imminente des équipements communs",
-    "CONSULTEZ LES DERNIERS ARRÊTÉS D'INTERDICTION D'OCCUPER PAR ARRONDISSEMENT (ORDRE CHRONOLOGIQUE)": "Arrêtés d'interdiction d'occuper",
-    "CONSULTEZ LES DERNIERS DIAGNOSTICS D'OUVRAGES": "Diagnostics d'ouvrages",
-}
-
-
 def calcul_categorie(i, db):
     """Catégorie d'acte.
 
@@ -31,10 +19,6 @@ def calcul_categorie(i, db):
     ----------
     """
     row = db.loc[i]
-    # FIXME corriger les classes en amont, au scraping, car le site a changé
-    # en attendant, un correctif quick'n'dirty...
-    row["classe"] = MAP_NEW_CLASSES.get(row["classe"], row["classe"])
-    # traitement normal
     if (
         row["classe"]
         != "Arrêtés de péril imminent, de Main Levée et de Réintégration partielle de la ville de Marseille"
@@ -64,7 +48,7 @@ def ajout_ligne_peril(id, url, adresse, pathologies, date):
             "categorie": "Arrêtés de péril",
             "adresse": adresse,
             "longitude": lon,
-            "lattitude": lat,
+            "latitude": lat,
             "pathologies": pathologies,
             "classification_pathologies": rec.classification_pathologie(pathologies),
             "classification_lieux": rec.classification_lieu(pathologies),
@@ -85,7 +69,7 @@ def ajout_ligne_autre(categorie, id, url, adresse, date):
             "categorie": categorie,
             "adresse": adresse,
             "longitude": lon,
-            "lattitude": lat,
+            "latitude": lat,
             "url": url,
             "date": date,
         }
