@@ -2,20 +2,61 @@
 
 from datetime import datetime
 import re
+
 from branca.element import Template, MacroElement
 import folium
+from folium.plugins import MarkerCluster
 
 import database
 from gestion_erreurs import ajout_erreur
 
-lat_marseille = 43.2969500
-lon_marseille = 5.3810700
+# keep
+LAT_MARSEILLE = 43.2969500
+LON_MARSEILLE = 5.3810700
+
+# pour les clusters (markers)
+icon_create_function = """ 
+function(cluster) {
+var childCount = cluster.getChildCount(); 
+var c = ' marker-cluster-medium';
+return new L.DivIcon({ html: '<link rel="stylesheet" href="./cluster.css"/><div><span> ' + childCount + '</span></div>', className: 'marker-cluster' + c, iconSize: new L.Point(40, 40) });
+}
+"""
 
 
-def creation_carte():
-    return folium.Map(
-        location=[lat_marseille, lon_marseille], zoom_start=12, min_zoom=11
+def creation_carte(marker_type="marker"):
+    """Crée la carte.
+
+    Parameters
+    ----------
+    marker_type : one of {"marker", "point"}
+        Type de marqueur
+
+    Returns
+    -------
+    c : ?
+        Carte folium
+    mcg : MarkerCluster or None
+        Cluster pour ajouter les marqueurs le cas échéant
+    """
+    # initialisation
+    fmap = folium.Map(
+        location=[LAT_MARSEILLE, LON_MARSEILLE], min_zoom=11, max_zoom=19, zoom_start=12
     )
+    # ajout de la légende
+    legend = ajout_legend()
+    fmap.get_root().add_child(legend)
+    # ajout du cluster de marqueurs
+    if marker_type == "marker":
+        mcg = folium.plugins.MarkerCluster(
+            control=False, icon_create_function=icon_create_function
+        )
+        fmap.add_child(mcg)
+    else:
+        # "point"
+        mcg = None
+    #
+    return fmap, mcg
 
 
 palette = dict()
@@ -69,20 +110,55 @@ def creation_marker(parent, x, y, message, marker_type="marker"):
     res.add_to(parent)
 
 
-def adresses():
-    db = database.ouverture_bdd()
+def create_markers(fmap, mcg, liste_messages, liste_latlons, marker_type="marker"):
+    """Ajoute les marqueurs
+
+    Parameters
+    ----------
+    fmap : ?
+        Carte Folium
+    mcg : MarkerCluster or None
+        Cluster de marqueurs si marker_type == "marker"
+    liste_messages : List[str]
+        Liste de messages pour les infobulles
+    liste_latlons : List[(str, str)]
+        Liste de coordonnées des marqueurs (latitude et longitude)
+    marker_type : one of {"marker", "point"}
+        Type de marqueur à afficher
+    """
+    if marker_type == "marker":
+        parent = mcg
+    else:
+        parent = fmap
+    nb_messages = len(liste_messages)
+    for i, (msg_i, (lat, lon)) in enumerate(
+        zip(liste_messages, liste_latlons), start=1
+    ):
+        if lat is None or lon is None:
+            # FIXME gérer en amont
+            continue
+        print(f"{i} / {nb_messages}")
+        creation_marker(parent, lat, lon, msg_i, marker_type=marker_type)
+
+
+def adresses(db):
     liste = []
     for key, value in db.items():
         adresse = value[0]["adresse"]
+        if adresse is None:
+            # FIXME gérer en amont
+            continue
         if adresse not in liste:
             liste.append(adresse)
     return liste
 
 
-def adrlatlons():
-    db = database.ouverture_bdd()
+def adrlatlons(db):
     result = []
     for key, value in db.items():
+        if value[0]["adresse"] is None:
+            # FIXME gérer en amont
+            continue
         adrlatlon = (value[0]["adresse"], value[0]["latitude"], value[0]["longitude"])
         if adrlatlon not in result:
             result.append(adrlatlon)
@@ -138,10 +214,12 @@ def sort_docs(list_k_date, reverse_chronological=True):
     return sorted_k_date
 
 
-def message(liste_adresse, db_csv, p_list_txt):
-    db = database.ouverture_bdd()
+def message(db, liste_adresse, db_csv, p_list_txt):
     liste = []
     for adresse in liste_adresse:
+        if adresse is None:
+            # FIXME gérer en amont
+            continue
         char = '<font size="+1"><B>' + adresse + "</B><br><br>"
         # begin sort docs (reverse chronological order)
         sel_docs = [
@@ -164,7 +242,9 @@ def message(liste_adresse, db_csv, p_list_txt):
                 "<i>"
                 + "<a href="
                 + elt["url"]
-                + ' Target="_blank">Lien vers le pdf</a>'
+                + ' Target="_blank">'
+                + elt["nom_doc"]
+                + "</a>"
                 + "</i> "
                 + (elt["date"] if elt["date"] is not None else "??/??/????")
                 + "<br>"
@@ -174,10 +254,18 @@ def message(liste_adresse, db_csv, p_list_txt):
                 try:
                     char += (
                         "- "
-                        + ", ".join(elt["classification_pathologies"])
+                        + (
+                            ", ".join(elt["classification_pathologies"])
+                            if elt["classification_pathologies"] is not None
+                            else "(manquant)"
+                        )
                         + "<br> "
                         + "- "
-                        + ", ".join(elt["classification_lieux"])
+                        + (
+                            ", ".join(elt["classification_lieux"])
+                            if elt["classification_lieux"] is not None
+                            else "(manquant)"
+                        )
                         + "<br>"
                     )
                 except:

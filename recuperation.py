@@ -127,6 +127,8 @@ def ajout_class(string1, string2, classification, pathologie):
 
 
 def classification_pathologie(pathologie):
+    if pathologie is None:
+        return None
     classification = []
     ajout_class("ffais", "affaissement", classification, pathologie)
     ajout_class("ltér", "altération", classification, pathologie)
@@ -159,6 +161,8 @@ def classification_pathologie(pathologie):
 
 
 def classification_lieu(pathologie):
+    if pathologie is None:
+        return None
     classification = []
     ajout_class("alcon", "balcon", classification, pathologie)
     ajout_class("errass", "balcon", classification, pathologie)

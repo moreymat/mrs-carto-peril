@@ -1,6 +1,5 @@
 import json
 
-import geocode as geo
 import recuperation as rec
 
 
@@ -10,6 +9,10 @@ def ouverture_bdd():
     return data_dict
 
 
+# TODO
+# - [ ] déplacer vers un module regroupant les fonctions qui s'appliquent aux données brutes extraites de la page du site ;
+# - [ ] réimplanter ? avec pandas.str.*
+# - [ ] implanter (dans un autre module) une variante plus fiable, qui utilise le texte de l'arrêté
 def calcul_categorie(i, db):
     """Catégorie d'acte.
 
@@ -21,7 +24,7 @@ def calcul_categorie(i, db):
     row = db.loc[i]
     if (
         row["classe"]
-        != "Arrêtés de péril imminent, de Main Levée et de Réintégration partielle de la ville de Marseille"
+        != "Arrêtés de péril imminent, de Main Levée et de Réintégration partielle"
     ):
         categorie = row["classe"]
     else:
@@ -40,40 +43,36 @@ def calcul_categorie(i, db):
     return categorie
 
 
-def ajout_ligne_peril(id, url, adresse, pathologies, date):
-    db = ouverture_bdd()
-    lon, lat = geo.geocode(adresse)
+def ajout_ligne_peril(
+    db, id, url, nom_doc, adresse, adr_id, lon, lat, pathologies, date
+):
     db[id] = [
         {
             "categorie": "Arrêtés de péril",
             "adresse": adresse,
+            "adr_id": adr_id,
             "longitude": lon,
             "latitude": lat,
             "pathologies": pathologies,
             "classification_pathologies": rec.classification_pathologie(pathologies),
             "classification_lieux": rec.classification_lieu(pathologies),
             "url": url,
+            "nom_doc": nom_doc,
             "date": date,
         }
     ]
-    with open("data.json", "w", encoding="utf-8") as f:
-        json.dump(db, f, ensure_ascii=False)
-    return None
 
 
-def ajout_ligne_autre(categorie, id, url, adresse, date):
-    db = ouverture_bdd()
-    lon, lat = geo.geocode(adresse)
+def ajout_ligne_autre(db, categorie, id, url, nom_doc, adresse, adr_id, lon, lat, date):
     db[id] = [
         {
             "categorie": categorie,
             "adresse": adresse,
+            "adr_id": adr_id,
             "longitude": lon,
             "latitude": lat,
             "url": url,
+            "nom_doc": nom_doc,
             "date": date,
         }
     ]
-    with open("data.json", "w", encoding="utf-8") as f:
-        json.dump(db, f, ensure_ascii=False)
-    return None
