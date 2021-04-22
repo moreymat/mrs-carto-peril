@@ -6,6 +6,9 @@ TODO
     https://github.com/geocoders/geocodejson-spec/tree/master/draft
 """
 
+from io import StringIO
+
+import pandas as pd
 import requests
 
 ENDPOINT_SEARCH = "https://api-adresse.data.gouv.fr/search/"
@@ -55,20 +58,40 @@ def geocode(adresse):
     return adr_geoloc
 
 
-def geocode_batch(p_adr, p_adr_geo):
-    """Géocode un fichier CSV d'adresses.
+def geocode_batch(df_adr, columns, p_adr, p_adr_geo):
+    """Géocode un ensemble d'adresses, par l'envoi d'un fichier CSV à l'API adresse.
 
     Parameters
     ----------
+    df_adr : pandas.DataFrame
+        Tableau d'adresses
+    columns : List[str]
+        Liste des colonnes à envoyer à l'API
     p_adr : Path
         Fichier d'adresses
     p_adr_geo : Path
         Fichier d'adresses géolocalisées résultat.
+
+    Returns
+    -------
+    df_adr_geo : pandas.DataFrame
+        Adresses géolocalisées
     """
+    print("Appel au géocodeur d'adresses")
+    # écrire les données dans un fichier CSV
+    df_adr.to_csv(p_adr, encoding="utf-8", index=False)
+    # appeler l'API
+    query_params = {"columns": columns}
     files = {"data": open(p_adr, mode="rb")}
-    # faire la requête POST avec le contenu
-    reponse = requests.post(ENDPOINT_SEARCH_CSV, files=files)
-    # récupérer et écrire la réponse
+    reponse = requests.post(ENDPOINT_SEARCH_CSV, files=files, data=query_params)
+    # récupérer la réponse en CSV et l'écrire dans un fichier (CSV)
     result = reponse.text
-    with open(p_adr_geo, mode="w", encoding="utf-8") as f_adr_geo:
-        f_adr_geo.write(result)
+    # with open(p_adr_geo, mode="w", encoding="utf-8") as f_adr_geo:
+    #     f_adr_geo.write(result)
+    f_result = StringIO(result)
+    df_adr_geo = pd.read_csv(
+        f_result, dtype="string", converters={"result_score": float}
+    )
+    df_adr_geo.to_csv(p_adr_geo, encoding="utf-8", index=False)
+    # renvoyer le tableau d'adresses géolocalisées
+    return df_adr_geo

@@ -1,12 +1,4 @@
-import json
-
 import recuperation as rec
-
-
-def ouverture_bdd():
-    with open("data.json", encoding="utf-8") as json_data:
-        data_dict = json.load(json_data)
-    return data_dict
 
 
 # TODO
@@ -44,12 +36,23 @@ def calcul_categorie(i, db):
 
 
 def ajout_ligne_peril(
-    db, id, url, nom_doc, adresse, adr_id, lon, lat, pathologies, date
+    db,
+    id,
+    url,
+    nom_doc,
+    adresse_orig,
+    adresse_geoc,
+    adr_id,
+    lon,
+    lat,
+    pathologies,
+    date,
 ):
     db[id] = [
         {
             "categorie": "Arrêtés de péril",
-            "adresse": adresse,
+            "adresse_orig": adresse_orig,
+            "adresse_geoc": adresse_geoc,
             "adr_id": adr_id,
             "longitude": lon,
             "latitude": lat,
@@ -63,11 +66,14 @@ def ajout_ligne_peril(
     ]
 
 
-def ajout_ligne_autre(db, categorie, id, url, nom_doc, adresse, adr_id, lon, lat, date):
+def ajout_ligne_autre(
+    db, categorie, id, url, nom_doc, adresse_orig, adresse_geoc, adr_id, lon, lat, date
+):
     db[id] = [
         {
             "categorie": categorie,
-            "adresse": adresse,
+            "adresse_orig": adresse_orig,
+            "adresse_geoc": adresse_geoc,
             "adr_id": adr_id,
             "longitude": lon,
             "latitude": lat,

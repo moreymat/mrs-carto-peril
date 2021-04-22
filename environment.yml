@@ -1,0 +1,15 @@
+name: mrs-carto-peril
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.8
+  - black
+  # top-level dependencies : code imports
+  - branca=0.3.1  # upgrade requires work
+  - dateparser
+  - folium=0.10.0  # upgrade requires work
+  - pandas
+  - pdf2image  # higher versions available through pip :-(
+  - pytesseract
+  - requests

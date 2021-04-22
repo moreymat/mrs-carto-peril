@@ -1,3 +1,11 @@
+"""
+TODO
+- [ ] upgrade folium to >= 0.11.0
+- [ ] if so, look at GeoJsonPopup https://python-visualization.github.io/folium/modules.html#folium.features.GeoJsonPopup
+    see also https://stackoverflow.com/a/60587098/14201886 , https://stackoverflow.com/a/64245749/14201886
+- [ ] upgrade branca
+"""
+
 # -*- coding: utf-8 -*-
 
 from datetime import datetime
@@ -131,35 +139,57 @@ def create_markers(fmap, mcg, liste_messages, liste_latlons, marker_type="marker
     else:
         parent = fmap
     nb_messages = len(liste_messages)
+    print(f"nb_messages: {nb_messages}")
+    try:
+        assert len(liste_messages) == len(liste_latlons)
+    except AssertionError:
+        print(len(liste_messages))
+        print(len(liste_latlons))
+        raise
     for i, (msg_i, (lat, lon)) in enumerate(
         zip(liste_messages, liste_latlons), start=1
     ):
         if lat is None or lon is None:
             # FIXME gérer en amont
             continue
-        print(f"{i} / {nb_messages}")
+        # print(f"{i} / {nb_messages}")
         creation_marker(parent, lat, lon, msg_i, marker_type=marker_type)
 
 
 def adresses(db):
+    """
+    FIXME il faut faire autrement cette fonction et adrlatlons() ci-dessous, pour éviter les incohérences
+    """
     liste = []
     for key, value in db.items():
-        adresse = value[0]["adresse"]
+        adresse = value[0]["adresse_orig"]
         if adresse is None:
             # FIXME gérer en amont
             continue
         if adresse not in liste:
             liste.append(adresse)
+    assert len(liste) == 651
     return liste
 
 
 def adrlatlons(db):
+    """
+    FIXME ici on suppose qu'une adresse a une seule latlon possible, or si on a deux entrées
+    avec la même adresse mais des codes postaux différents, on aboutit à une situation où
+    la liste des adresses (cf. fonction précédente) a une entrée de moins que la liste des
+    adrlatlons (ici). Il faut faire autrement !
+    """
+    adresses = {}  # DEBUG
     result = []
     for key, value in db.items():
-        if value[0]["adresse"] is None:
+        if value[0]["adresse_orig"] is None:
             # FIXME gérer en amont
             continue
-        adrlatlon = (value[0]["adresse"], value[0]["latitude"], value[0]["longitude"])
+        adrlatlon = (
+            value[0]["adresse_orig"],
+            value[0]["latitude"],
+            value[0]["longitude"],
+        )
         if adrlatlon not in result:
             result.append(adrlatlon)
     return result
@@ -223,7 +253,7 @@ def message(db, liste_adresse, db_csv, p_list_txt):
         char = '<font size="+1"><B>' + adresse + "</B><br><br>"
         # begin sort docs (reverse chronological order)
         sel_docs = [
-            (k, v[0]["date"]) for k, v in db.items() if v[0]["adresse"] == adresse
+            (k, v[0]["date"]) for k, v in db.items() if v[0]["adresse_orig"] == adresse
         ]
         sorted_list = sort_docs(sel_docs)
         # end sort docs (reverse chronological order)

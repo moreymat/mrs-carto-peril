@@ -95,7 +95,7 @@ def check_csv_raw(df_raw):
 
 
 # corrections, à essayer d'automatiser au maximum en amont
-RE_TIRET_CP = r"-[ ]?(?P<cp>\d{5})"
+RE_TIRET_CP = r"[ ]?-[ ]?(?P<cp>\d{5})"
 
 
 def auto_fix(df_raw):
@@ -135,6 +135,22 @@ MANUAL_FIX_URL = {
 }
 
 
+MANUAL_ADRESSE_TO_CP = {
+    # une occurrence dans 13002 (ok) et une 13004 (pas ok) (et c'est "Pierre Albrand")
+    # mais une seule vraie occurrence car c'est la même URL !
+    "49 rue Pierre Albran": "13002",
+    # une occurrence dans 13005 (ok) et une 13006 (pas ok)
+    "16 rue de Bruys": "13005",
+    # deux occurrences dans 13006 (ok) et une dans 13005 (pas ok)
+    "35 rue de Lodi": "13006",
+}
+
+# TODO intégrer la correction d'adresses (...)
+MANUAL_FIX_ADRESSE = {
+    "49 rue Pierre Albran": "49 rue Pierre Albrand",
+}
+
+
 def manual_fix(df_raw):
     """Corrige manuellement certaines entrées.
 
@@ -142,6 +158,8 @@ def manual_fix(df_raw):
     """
     for e_item, e_adrs in MANUAL_ITEM_TO_ADRESSE.items():
         df_raw.loc[df_raw["item"] == e_item, "adresse"] = e_adrs
+    for e_adr, e_cp in MANUAL_ADRESSE_TO_CP.items():
+        df_raw.loc[df_raw["adresse"] == e_adr, "code_postal"] = e_cp
     for url_bad, url_fix in MANUAL_FIX_URL.items():
         df_raw.loc[df_raw["url"] == url_bad, "url"] = url_fix
     return df_raw
@@ -176,7 +194,7 @@ def clean_enrich_raw_csv(df_raw):
     )
     # et, par adresse, par ordre chronologique : on marque les groupes d'arrêtés de même
     # type à la même adresse (d'après la page du site) ainsi que leur ordre relatif dans
-    # chaque groupe, qui pourra être utilisé pour classer les arrêtés
+    # chaque groupe, qui pourra être utilisé pour classer les arrêtés en l'absence de date
     df_raw["doc_grp_idx"] = df_raw.groupby(
         by=["classe", "adresse"], sort=False
     ).ngroup()
@@ -208,6 +226,28 @@ def summarize_data(df_new):
             print("  détail sans code postal :")
             print(f"    {df_new[df_new['code_postal'].isna()][['item']].values}")
     # adresses
+    # d'abord on vérifie que deux occurrences de la même adresse n'ont pas des codes postaux
+    # renseignés différents (c'est déjà arrivé...)
+    try:
+        assert not any(
+            df_new.groupby(["adresse"], sort=False, dropna=False)[
+                "code_postal"
+            ].nunique()
+            > 1
+        )
+    except AssertionError:
+        incs = (
+            df_new.groupby(["adresse"], sort=False, dropna=False)[
+                "code_postal"
+            ].nunique()
+            > 1
+        )
+        print(
+            "ERR: Les adresses suivantes ont des occurrences avec des codes postaux distincts :"
+        )
+        print("\n".join(f"- {repr(x)}" for x in incs[incs].index.tolist()))
+        raise
+    #
     df_adr_uniq = df_new[["adresse"]].drop_duplicates()
     print(f"adresses uniques (WIP) : {df_adr_uniq.shape[0]}")
     # adresses à déplier

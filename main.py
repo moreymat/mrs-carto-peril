@@ -19,14 +19,13 @@ TODO
 
 from datetime import datetime
 import json
-import os
 from pathlib import Path
 import re
 import webbrowser
 
-import numpy as np
 import pandas as pd
 
+from corpus_pdf import check_or_get_corpus_pdf, changement_url
 from csv_adr_geo import load_csv_adr_geo, summarize_adr_geo
 from csv_raw_format import load_csv_raw
 from geocode import geocode_batch
@@ -34,13 +33,19 @@ import carte
 import database
 import convert_pdf_to_txt as conv
 import recuperation as rec
-from gestion_erreurs import ajout_erreur
 
 
-# raw : liste de documents PDF et métadonnées de la page du site de la ville
+# raw :
+# liste de documents PDF et métadonnées de la page du site de la ville
 # P_LIST_PDF = Path("data", "raw", "mrs-arretes-de-peril-2021-03-25.csv")
 P_LIST_PDF = Path("data", "raw", "mrs-arretes-de-peril-2021-03-25_new.csv")
-# interim : liste d'adresses uniques
+# documents PDF
+CORPUS_DIR = Path("data", "raw", "marseille-fr_arretes-de-peril_pdf")
+
+# interim :
+# documents TXT produits par OCR
+TXT_DIR = Path("data", "interim", "marseille-fr_arretes-de-peril_txt")
+# liste d'adresses uniques
 P_ADR = Path("data", "interim", P_LIST_PDF.stem + "_adr" + P_LIST_PDF.suffix)
 # interim : liste des adresses géocodées
 P_ADR_GEO = Path("data", "interim", P_ADR.stem + "_geo" + P_ADR.suffix)
@@ -112,13 +117,13 @@ def init_list_txt(df_raw):
     df_raw["erreurs"] = False
     df_raw["nom_txt"] = ""
     #
-    df_raw.to_csv(P_LIST_TXT, index=False)
+    df_raw.to_csv(P_LIST_TXT, index=False, encoding="utf-8")
 
 
 RE_DATE_NOMDOC = re.compile(r"(?P<date_link>\d{2}/\d{2}/\d{4})")
 
 
-def process_arretes(db_csv, json2):
+def process_arretes(db_csv, txt_dir, dict_arretes, p_json):
     """Traite les arrêtés: catégorise et extrait les pathologies.
 
     Pour les adresses, on utilise en première approximation celles récupérées de
@@ -128,20 +133,23 @@ def process_arretes(db_csv, json2):
     ----------
     db_csv : pandas.DataFrame
         DataFrame des arrêtés
-    json2 : dict
+    txt_dir : Path
+        Dossier contenant les TXT
+    dict_arretes : dict
         Dict JSON
+    p_json : Path
+        Fichier JSON résultat, où seront stockées les données.
     """
     idc_err_date = []  # échec sur l'extraction de date
     # TODO détecter ou marquer les erreurs d'extraction d'adresse
     idc_err_adr = []  # échec sur l'extraction de l'adresse
     idc_err_pathologies = []  # échec sur l'extraction de pathologies
     for row_idx, row in db_csv.to_dict(orient="index").items():
-        print(f"main: {row_idx} / {len(db_csv)}")
         if not row["nom_txt"]:
             # FIXME essayer d'extraire les infos qu'on peut à partir du texte du lien etc?
             continue
         # charger le texte du doc
-        p_txt = Path("./Datas/TXT/", row["nom_txt"])
+        p_txt = txt_dir.joinpath(row["nom_txt"])
         with open(p_txt, "r", encoding="utf-8") as f_txt:
             doc_txt = f_txt.read()
         # extraire l'identifiant du doc
@@ -161,14 +169,15 @@ def process_arretes(db_csv, json2):
                 continue
             print(p_txt)
             raise
-        if True:  # doc_id not in json2:  # FIXME optionally enable this cache
+        if True:  # doc_id not in dict_arretes:  # FIXME optionally enable this cache
             # définir la catégorie de l'arrêté
             cat = database.calcul_categorie(row_idx, db_csv)
+
             # date
             try:
                 # date extraite depuis le corps de texte
                 date_txt = rec.recup_date(doc_txt)
-            except ValueError as e:
+            except ValueError:
                 date_txt = None
             # date extraite du texte du lien (site ville)
             m_date_nomdoc = RE_DATE_NOMDOC.search(row["nom_doc"])
@@ -193,7 +202,9 @@ def process_arretes(db_csv, json2):
                     "39-rue-tapis-vert-13001_2021_00674.txt",
                     # FIXME etc. (cf. liste recuperation.recup_date())
                 ):
-                    print(f"W: Pas de date pour {p_txt}")
+                    print(
+                        f"W: Pas de date pour {p_txt} (main: {row_idx} / {len(db_csv)})"
+                    )
             elif date_txt is not None and date_nomdoc is not None:
                 d_nomdoc = datetime.strptime(date_nomdoc, "%d/%m/%Y")
                 d_txt = datetime.strptime(date_txt, "%d/%m/%Y")
@@ -201,28 +212,30 @@ def process_arretes(db_csv, json2):
                 if date_nomdoc != date_txt:
                     # idc_err_date.append(row_idx)
                     print(
-                        f"W: Dates différentes: txt={date_txt}, nomdoc={date_nomdoc} ({p_txt})"
+                        f"W: Dates différentes: txt={date_txt}, nomdoc={date_nomdoc} ({p_txt}) (main: {row_idx} / {len(db_csv)})"
                     )
             elif date_txt is not None:
                 date = date_txt
             else:
                 date = date_nomdoc
+
             # stockage des résultats
             if cat == "Arrêtés de péril":
                 pathologies = rec.recup_pathologie(doc_txt, db_csv, P_LIST_TXT, row_idx)
                 if pathologies is None:
                     idc_err_pathologies.append(row_idx)
                 # TODO keep ?
-                conv.changement_url(row_idx, row["url"], db_csv)
+                changement_url(row_idx, row["url"], db_csv)
                 # ?
                 database.ajout_ligne_peril(
-                    json2,
+                    dict_arretes,
                     doc_id,
                     row["url"],
                     row["nom_doc"],
+                    row["adresse"],  # adresse sur la page
                     # geocodage
-                    row["result_label"],  # adresse
-                    row["result_id"],  # identifiant unique adresse
+                    row["result_label"],  # adresse trouvée par le géocodeur
+                    row["result_id"],  # identifiant unique adresse géocodeur
                     row["longitude"],
                     row["latitude"],
                     # pathologies
@@ -231,13 +244,15 @@ def process_arretes(db_csv, json2):
                 )
             else:
                 database.ajout_ligne_autre(
-                    json2,
+                    dict_arretes,
                     cat,
                     doc_id,
                     row["url"],
                     row["nom_doc"],
-                    row["result_label"],  # adresse
-                    row["result_id"],  # identifiant unique adresse
+                    row["adresse"],  # adresse sur la page
+                    # geocodage
+                    row["result_label"],  # adresse trouvée par le géocodeur
+                    row["result_id"],  # identifiant unique adresse géocodeur
                     row["longitude"],
                     row["latitude"],
                     date,
@@ -253,10 +268,10 @@ def process_arretes(db_csv, json2):
     print("Dump CSV")
     db_csv.to_csv(P_LIST_TXT, index=False, encoding="utf-8")
     # dump JSON
-    with open("data.json", "w", encoding="utf-8") as f:
-        json.dump(json2, f, ensure_ascii=False)
+    with open(p_json, "w", encoding="utf-8") as f:
+        json.dump(dict_arretes, f, ensure_ascii=False, indent=4)
     # return dict (JSON)
-    return json2
+    return dict_arretes
 
 
 # 0. géocodage des adresses des arrêtés
@@ -264,13 +279,46 @@ def process_arretes(db_csv, json2):
 df_raw = load_csv_raw(P_LIST_PDF)
 # géocoder les adresses raw
 do_geoloc = True
+mode_geoloc = "new"  # "old", "new"
 if do_geoloc:
     print("Géocodage des adresses (raw)")
     df_adr = df_raw[["adresse", "code_postal", "ville"]].drop_duplicates()
-    df_adr.to_csv(P_ADR, index=False)
-    geocode_batch(P_ADR, P_ADR_GEO)
+    # Préparation du fichier CSV d'adresses
+    # si un immeuble a plusieurs adresses, on en garde une seule pour le géocodage
+    # TODO utiliser les autres adresses en fallback lorsque le géocodage renvoie un résultat
+    # de faible score, ou une rue plutôt qu'un bâtiment ?
+    # TODO valider avec les utilisateurs qu'on veut bien un seul point pour la carto
+    if mode_geoloc == "new":
+        df_adr = df_adr.assign(
+            adrs=df_adr.adresse.str.split(
+                r"(?<=[a-zA-Zé])[ ]?/[ ]?(?=\d)", expand=False
+            )
+        ).explode("adrs")
+        # TODO gérer les arrêtés portant sur deux immeubles ou plus, à deux adresses ou plus
+        geocode_cols = ["adrs", "code_postal", "ville"]
+    else:
+        # DEBUG
+        geocode_cols = ["adresse", "code_postal", "ville"]
+    df_adr_geo = geocode_batch(df_adr, geocode_cols, P_ADR, P_ADR_GEO)
+    # Candidats au sauvetage :
+    # - si le résultat est de type "street" alors que l'adresse comporte un numéro
+else:
+    df_adr_geo = load_csv_adr_geo(P_ADR_GEO)
+# ne retenir que le meilleur résultat pour chaque adresse
+# https://stackoverflow.com/a/63485139/14201886
+# FIXME certains matchs "street" ont des scores supérieurs à "housenumber" ;
+# mais en dépliant encore plus les adresses, on devrait éviter ces régressions (espérons-le)
+# sinon utiliser groupby.filter(lambda x: fn(x['col']) )
+if mode_geoloc == "new":
+    df_adr_geo = (
+        df_adr_geo.groupby(
+            ["adresse", "code_postal", "ville"], sort=False, dropna=False
+        )
+        .apply(lambda group: group.nlargest(1, columns="result_score"))
+        .reset_index(drop=True)
+    )
+# DEBUG df_adr_geo.to_csv(f"dbg_geoloc_{mode_geoloc}", encoding="utf-8", index=False)
 # assembler les adresses géocodées et le fichier raw
-df_adr_geo = load_csv_adr_geo(P_ADR_GEO)
 print("------------")
 summarize_adr_geo(df_adr_geo)
 # faire la jointure de la liste des documents et du géocodage de leurs adresses
@@ -290,42 +338,49 @@ do_init_list_txt = True  # FIXME argparse?
 if do_init_list_txt:
     init_list_txt(df_raw_adr_geo)
 
-# 1. convert PDF to txt
-redo_dl_extract = True  # FIXME argparse?
-if redo_dl_extract:
-    db_csv = conv.pdf_to_txt(P_LIST_TXT, dl_pdf="none")
-else:
-    db_csv = pd.read_csv(
-        P_LIST_TXT,
-        encoding="utf-8",
-    )
+# 1. on ouvre le corpus PDF
+dl_pdf = "none"  # "missing", "none"
+if not CORPUS_DIR.is_dir():
+    CORPUS_DIR.mkdir()
+df_corpus = check_or_get_corpus_pdf(P_LIST_TXT, CORPUS_DIR, dl_pdf=dl_pdf)
 
-# 2. create json
-# FIXME init json file if missing: make it cleaner
-DB_PATH = Path("data.json")
+# 2. on extrait le texte par OCR
+extract_text = "missing"  # "missing", "none"
+df_corpus = conv.pdf_to_txt(df_corpus, CORPUS_DIR, TXT_DIR, extract_text=extract_text)
+# dump current state
+df_corpus.to_csv(P_LIST_TXT, index=False, encoding="utf-8")
+
+# 3. on extrait les données des arrêtés (pour export json)
+DB_PATH = Path("data", "processed", "arretes-de-peril.json")
+
 if not DB_PATH.is_file():
+    # FIXME init json file if missing: make it cleaner
+    dict_arretes = {}
     with open(DB_PATH, mode="w", encoding="utf-8") as f_db:
-        f_db.write("{}\n")
-# end FIXME
-do_process_arretes = True  # FIXME argparse?
-if do_process_arretes:
-    print("Analyse des arrêtés")
-    json2 = database.ouverture_bdd()
-    json2 = process_arretes(db_csv, json2)
+        json.dump(dict_arretes, f_db, ensure_ascii=False, indent=4)
+    # end FIXME
+
+# FIXME on charge le fichier actuel des données sur les arrêtés
+with open(DB_PATH, encoding="utf-8") as f_json:
+    dict_arretes = json.load(f_json)
+
+# FIXME ajouter une option pour simplement lire le contenu du json (sans ré-extraire le contenu des arrêtés)
+print("Analyse des arrêtés")
+dict_arretes = process_arretes(df_corpus, TXT_DIR, dict_arretes, DB_PATH)
 
 # 3. create map
 print("Création de la carte")
-marker_type = "point"  # "marker"
+marker_type = "point"  # "marker", "point"
 # si marker_type != "marker", mcg is None
 c, mcg = carte.creation_carte(marker_type=marker_type)
 
 print("Compilation de la liste d'adresses")
-liste_adresses = carte.adresses(json2)
+liste_adresses = carte.adresses(dict_arretes)
 print("Préparation des messages pour les infobulles")
-liste_messages = carte.message(json2, liste_adresses, db_csv, P_LIST_TXT)
+liste_messages = carte.message(dict_arretes, liste_adresses, df_corpus, P_LIST_TXT)
 # TODO cleanup
 print("(TEST) Extraction des latlons déjà extraites")
-liste_adrlatlons_old = carte.adrlatlons(json2)
+liste_adrlatlons_old = carte.adrlatlons(dict_arretes)
 # TODO géocoder les adresses extraites du texte, plus fines que celles du raw
 do_geocode_txt = False
 if do_geocode_txt:
@@ -337,7 +392,7 @@ liste_latlons = [(lat, lon) for _, lat, lon in liste_adrlatlons_old]
 print("Ajout des points sur la carte")
 carte.create_markers(c, mcg, liste_messages, liste_latlons, marker_type=marker_type)
 # sauvegarde de la carte HTML
-p_carte = Path(f"carte_{marker_type}.html")
+p_carte = Path("reports", f"carte_{marker_type}.html")
 c.save(str(p_carte))
 # ouverture dans le navigateur
 webbrowser.open(p_carte.resolve().as_uri())
