@@ -74,10 +74,12 @@ def check_csv_raw(df_raw):
         "PAR ARRONDISSEMENT \(ORDRE CHRONOLOGIQUE\)"
     )
     assert df_raw.loc[classe_arr, "arrondissement"].isna().sum() == 0
-    assert df_raw.loc[~classe_arr, "arrondissement"].notna().sum() == 0
+    # 2021-06 tous les arrêtés sont maintenant rangés par arrondissement
+    # assert df_raw.loc[~classe_arr, "arrondissement"].notna().sum() == 0
     assert (
         df_raw.loc[classe_arr, "arrondissement"].notna().sum()
-        + df_raw.loc[~classe_arr, "arrondissement"].isna().sum()
+        # + df_raw.loc[~classe_arr, "arrondissement"].isna().sum()  # < 2021-06
+        + df_raw.loc[~classe_arr, "arrondissement"].notna().sum()  # >= 2021-06
         == df_raw.shape[0]
     )
     # dépendance fonctionnelle : s'il y a un arrondissement, alors il y a un code_postal
@@ -143,6 +145,10 @@ MANUAL_ADRESSE_TO_CP = {
     "16 rue de Bruys": "13005",
     # deux occurrences dans 13006 (ok) et une dans 13005 (pas ok)
     "35 rue de Lodi": "13006",
+    # 13005 (faux) et 13006 (vrai)
+    "59 place Jean Jaurès": "13006",
+    # 13004 (faux) et 13001 (vrai)
+    "2 rue d'Anvers": "13001",
 }
 
 # TODO intégrer la correction d'adresses (...)
@@ -265,7 +271,8 @@ def summarize_data(df_new):
 
 if __name__ == "__main__":
     # in: raw old
-    p_raw_old = Path("data", "raw", "mrs-arretes-de-peril-2021-03-25.csv")
+    # p_raw_old = Path("data", "raw", "mrs-arretes-de-peril-2021-03-25.csv")
+    p_raw_old = Path("data", "raw", "mrs-arretes-de-peril-2021-07-14.csv")
     p_raw_dir = p_raw_old.parent
     # out: raw new
     p_raw_new = p_raw_dir.joinpath(p_raw_old.stem + "_new" + p_raw_old.suffix)

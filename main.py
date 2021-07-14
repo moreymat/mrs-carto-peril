@@ -1,6 +1,10 @@
 """
 
 TODO
+- [ ] déplier les suites d'adresses (ex: 43-45 etc)
+- [ ] ajouter le géocodeur Nominatim d'OSM : https://nominatim.org/release-docs/develop/api/Search/
+- [ ] comparer les résultats de Nominatim et de l'API Adresse
+- [ ] extraire directement le texte de certains PDF récents (>= 2021-MM-DD ?) avec pdfplumber
 - [ ] extraire le numéro (identifiant) de l'arrêté (ex: 2021_00380_VDM)
 - [ ] utiliser le numéro de l'arrêté pour classer (puis afficher) les actes sans date
 - [ ] extraire l'identifiant de la parcelle cadastrale
@@ -10,7 +14,8 @@ TODO
 - [ ] ajouter source RAA (ex: 2019_03696_VDM 1-bd-eugene-pierre-13005_2019_03696.pdf dans raa 585 du 1er novembre 2019)
 - [ ] calculer la couverture des scripts (2021-04-09: 889 entrées dans data.json (=889 arrêtés cartographiés?),
       609 adresses (items dans les listes sur la page des arrêtés)
-- [ ] regrouper les arrêtés par "id" de géolocalisation, pour regrouper "35 rue Montolieu" et "35 rue Montolieu - 13002"
+- [ ] regrouper les arrêtés par "id" de géolocalisation, pour regrouper "35 rue Montolieu" et "35 rue Montolieu - 13002" (encore utile après nettoyage des adresses ?)
+- [ ] annoter les arrêtés avec skweak ? https://github.com/NorskRegnesentral/skweak https://arxiv.org/abs/2104.09683
 """
 # nb arrêtés : jq 'keys[]' data.json |wc -l
 # 2021-04-10: 1082 (cartographiés, ou incluant les adresses non reconnues?)
