@@ -87,7 +87,7 @@ def pdf_to_txt(
     s_pdf = db_csv["nom_pdf"]
     s_pdf_path = s_pdf.apply(lambda x: corpus_dir.joinpath(x))
     # calcul et stockage des noms de fichiers TXT
-    s_stem = s_pdf.str.split(pat=".", n=1, expand=True)[0]  # or Path(...).stem ?
+    s_stem = s_pdf.str.rsplit(pat=".", n=1, expand=True)[0]  # or Path(...).stem ?
     s_txt = s_stem + ".txt"
     db_csv["nom_txt"] = s_txt
 

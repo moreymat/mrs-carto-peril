@@ -89,9 +89,8 @@ def geocode_batch(df_adr, columns, p_adr, p_adr_geo):
     # with open(p_adr_geo, mode="w", encoding="utf-8") as f_adr_geo:
     #     f_adr_geo.write(result)
     f_result = StringIO(result)
-    df_adr_geo = pd.read_csv(
-        f_result, dtype="string", converters={"result_score": float}
-    )
+    df_adr_geo = pd.read_csv(f_result, dtype="string")
+    df_adr_geo["result_score"] = df_adr_geo["result_score"].astype("float")
     df_adr_geo.to_csv(p_adr_geo, encoding="utf-8", index=False)
     # renvoyer le tableau d'adresses géolocalisées
     return df_adr_geo

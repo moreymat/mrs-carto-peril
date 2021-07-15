@@ -43,7 +43,8 @@ import recuperation as rec
 # raw :
 # liste de documents PDF et métadonnées de la page du site de la ville
 # P_LIST_PDF = Path("data", "raw", "mrs-arretes-de-peril-2021-03-25.csv")
-P_LIST_PDF = Path("data", "raw", "mrs-arretes-de-peril-2021-03-25_new.csv")
+# P_LIST_PDF = Path("data", "raw", "mrs-arretes-de-peril-2021-03-25_new.csv")
+P_LIST_PDF = Path("data", "raw", "mrs-arretes-de-peril-2021-07-14_new.csv")
 # documents PDF
 CORPUS_DIR = Path("data", "raw", "marseille-fr_arretes-de-peril_pdf")
 
